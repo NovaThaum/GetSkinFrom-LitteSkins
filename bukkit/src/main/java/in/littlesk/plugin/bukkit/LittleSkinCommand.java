@@ -12,10 +12,12 @@ import org.bukkit.entity.Player;
 public final class LittleSkinCommand implements CommandExecutor {
     private final BukkitMain plugin;
     private final Core core;
+    private final SkinsRestorerBridge skins;
 
-    public LittleSkinCommand(BukkitMain plugin, Core core) {
+    public LittleSkinCommand(BukkitMain plugin, Core core, SkinsRestorerBridge skins) {
         this.plugin = plugin;
         this.core = core;
+        this.skins = skins;
     }
 
     @Override
@@ -31,13 +33,15 @@ public final class LittleSkinCommand implements CommandExecutor {
 
         Player player = (Player) sender;
         player.sendMessage(ChatColor.GRAY + "Fetching your LittleSkin skin...");
-        this.core.getGameProfileByName(player.getName()).whenComplete((profile, error) ->
-                this.plugin.getServer().getScheduler().runTask(this.plugin, () -> {
-                    if (error != null || !profile.isPresent() || !SkinsRestorerBridge.applySkin(player, Player.class, profile.get())) {
-                        player.sendMessage(ChatColor.RED + "LittleSkin did not provide a usable skin. Your SkinsRestorer skin was left unchanged.");
+        SkinsRestorerBridge.Request request = this.skins.begin(player.getUniqueId());
+        this.skins.findManual(this.core, request, player.getName()).whenComplete((profile, error) ->
+                this.plugin.runForPlayer(player, () -> {
+                    if (!this.skins.isCurrent(request)) return;
+                    if (error != null || !profile.isPresent() || !this.skins.applySkin(request, player, Player.class, profile.get())) {
+                        player.sendMessage(ChatColor.RED + "LittleSkin is unavailable or this player is not eligible. No skin change was requested.");
                         return;
                     }
-                    player.sendMessage(ChatColor.GREEN + "Your LittleSkin skin has been applied.");
+                    player.sendMessage(ChatColor.GREEN + "Your LittleSkin skin was submitted to SkinsRestorer.");
                 }));
         return true;
     }

@@ -6,7 +6,7 @@ load: STARTUP
 authors: ['LittleSkin']
 website: 'https://littleskin'
 depend: [ SkinsRestorer ]
-softdepend: [ ProtocolLib ]
+softdepend: [ ProtocolLib, floodgate ]
 api-version: 1.13
 folia-supported: true
 commands:

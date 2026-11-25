@@ -11,9 +11,11 @@ import java.util.concurrent.TimeUnit;
 
 public final class VelocityLittleSkinCommand implements SimpleCommand {
     private final Core core;
+    private final SkinsRestorerBridge skins;
 
-    public VelocityLittleSkinCommand(Core core) {
+    public VelocityLittleSkinCommand(Core core, SkinsRestorerBridge skins) {
         this.core = core;
+        this.skins = skins;
     }
 
     @Override
@@ -29,12 +31,14 @@ public final class VelocityLittleSkinCommand implements SimpleCommand {
 
         Player player = (Player) invocation.source();
         player.sendMessage(Component.text("Fetching your LittleSkin skin..."));
-        this.core.getGameProfileByName(player.getUsername()).orTimeout(10, TimeUnit.SECONDS).whenComplete((profile, error) -> {
-            if (error != null || !profile.isPresent() || !SkinsRestorerBridge.applySkin(player, Player.class, profile.get())) {
-                player.sendMessage(Component.text("LittleSkin did not provide a usable skin. Your SkinsRestorer skin was left unchanged."));
+        SkinsRestorerBridge.Request request = this.skins.begin(player.getUniqueId());
+        this.skins.findManual(this.core, request, player.getUsername()).orTimeout(10, TimeUnit.SECONDS).whenComplete((profile, error) -> {
+            if (!player.isActive() || !this.skins.isCurrent(request)) return;
+            if (error != null || !profile.isPresent() || !this.skins.applySkin(request, player, Player.class, profile.get())) {
+                player.sendMessage(Component.text("LittleSkin is unavailable or this player is not eligible. No skin change was requested."));
                 return;
             }
-            player.sendMessage(Component.text("Your LittleSkin skin has been applied."));
+            player.sendMessage(Component.text("Your LittleSkin skin was submitted to SkinsRestorer."));
         });
     }
 

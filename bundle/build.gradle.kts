@@ -28,6 +28,7 @@ tasks.shadowJar {
 
     val prefix = "${rootProject.group}.libs"
 
+    relocate("org.yaml.snakeyaml", "$prefix.snakeyaml")
     relocate("okhttp3", "$prefix.okhttp3")
     relocate("okio", "$prefix.okio")
     relocate("com.squareup.moshi", "$prefix.moshi")

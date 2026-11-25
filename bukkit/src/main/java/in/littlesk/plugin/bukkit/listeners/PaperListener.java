@@ -1,58 +1,59 @@
 package in.littlesk.plugin.bukkit.listeners;
 
-import com.destroystokyo.paper.profile.PlayerProfile;
-import com.destroystokyo.paper.profile.ProfileProperty;
+import in.littlesk.plugin.bukkit.BukkitMain;
 import in.littlesk.plugin.core.Core;
-import in.littlesk.plugin.core.yggdrasil.RemoteGameProfile;
+import in.littlesk.plugin.core.skinsrestorer.SkinsRestorerBridge;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 
-import java.util.concurrent.TimeUnit;
-
-public class PaperListener implements Listener {
+public final class PaperListener implements Listener {
+    private final BukkitMain plugin;
     private final Core core;
+    private final SkinsRestorerBridge skins;
 
-    public PaperListener(Core core) {
+    public PaperListener(BukkitMain plugin, Core core, SkinsRestorerBridge skins) {
+        this.plugin = plugin;
         this.core = core;
+        this.skins = skins;
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onPlayerPreLogin(AsyncPlayerPreLoginEvent event) {
-        if (event.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        if (hasTextures(player)) {
             return;
         }
-
-        PlayerProfile localProfile = event.getPlayerProfile();
-        if (localProfile.getProperties().stream().anyMatch(property -> property.getName().equals("textures"))) {
-            return;
-        }
-
-        String name = event.getName();
-        RemoteGameProfile remoteProfile;
-
-        try {
-            remoteProfile = this.core.getGameProfileByName(name).get(10, TimeUnit.SECONDS).orElse(null);
-            if (remoteProfile == null) {
-                return;
+        SkinsRestorerBridge.Request request = this.skins.beginAutomatic(player.getUniqueId());
+        this.skins.findFallback(this.core, request, player.getName()).whenComplete((profile, error) -> {
+            if (error == null && profile.isPresent()) {
+                this.plugin.runForPlayer(player, () -> {
+                    // A skin may have been selected while the lookup was in flight.
+                    if (player.isOnline() && !hasTextures(player)) {
+                        this.skins.applySkin(request, player, Player.class, profile.get());
+                    }
+                });
             }
-        } catch (Exception e) {
-            return;
-        }
+        });
+    }
 
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onCommand(PlayerCommandPreprocessEvent event) {
+        // Include aliases and namespaced commands. A new command abandons old HTTP work.
+        this.skins.invalidate(event.getPlayer().getUniqueId());
+    }
 
-        RemoteGameProfile.Property textureProperty = remoteProfile.getProperty("textures").orElse(null);
-        if (textureProperty == null) {
-            return;
-        }
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        this.skins.disconnect(event.getPlayer().getUniqueId());
+    }
 
-        localProfile.setProperty(new ProfileProperty(
-                "textures",
-                textureProperty.value,
-                textureProperty.signature
-        ));
-
-        event.setPlayerProfile(localProfile);
+    private static boolean hasTextures(Player player) {
+        return player.getPlayerProfile().getProperties().stream()
+                .anyMatch(property -> "textures".equals(property.getName()));
     }
 }

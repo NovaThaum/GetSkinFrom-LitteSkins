@@ -1,4 +1,8 @@
 dependencies {
+    implementation("org.yaml:snakeyaml:2.3")
+    compileOnly("net.skinsrestorer:skinsrestorer-api:15.0.0")
+    testImplementation("net.skinsrestorer:skinsrestorer-api:15.0.0")
+    testImplementation("org.mockito:mockito-core:4.11.0")
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

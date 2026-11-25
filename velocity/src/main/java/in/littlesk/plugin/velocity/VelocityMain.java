@@ -9,6 +9,10 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import in.littlesk.plugin.core.Core;
 import in.littlesk.plugin.core.logger.Slf4jLogger;
 import in.littlesk.plugin.core.Messages;
+import in.littlesk.plugin.core.skinsrestorer.SkinsRestorerBridge;
+import in.littlesk.plugin.core.skinsrestorer.CompatibilityPolicy;
+import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.plugin.Dependency;
 import in.littlesk.plugin.velocity.listeners.VelocityListener;
 import in.littlesk.plugin.velocity.commands.VelocityLittleSkinCommand;
 import org.bstats.velocity.Metrics;
@@ -17,14 +21,19 @@ import org.slf4j.Logger;
 @Plugin(
         id = "getskinfrom-littleskins",
         name = "GetSkinFrom-LitteSkins",
-        version = "1.2.1"
+        version = "1.2.2",
+        dependencies = { @Dependency(id = "skinsrestorer"), @Dependency(id = "floodgate", optional = true) }
 )
 public class VelocityMain {
 
     private final ProxyServer server;
     private final Slf4jLogger logger;
     private final Metrics.Factory metricsFactory;
+    @Inject
+    @com.velocitypowered.api.plugin.annotation.DataDirectory
+    private java.nio.file.Path dataDirectory;
     private Core core;
+    private SkinsRestorerBridge skins;
 
     @Inject
     public VelocityMain(ProxyServer server, Logger logger, Metrics.Factory metricsFactory) {
@@ -48,18 +57,30 @@ public class VelocityMain {
             return;
         }
 
+        try {
+            java.nio.file.Path srConfig = this.dataDirectory.resolveSibling("skinsrestorer").resolve("config.yml");
+            this.skins = new SkinsRestorerBridge(this.logger,
+                    () -> CompatibilityPolicy.automaticAllowed(srConfig, this.logger),
+                    uuid -> CompatibilityPolicy.isBedrock(this.server.getPluginManager().getPlugin("floodgate")
+                            .flatMap(container -> container.getInstance()).orElse(null), uuid, this.logger));
+            this.skins.watch(this, Player.class, Player::getUniqueId);
+        } catch (RuntimeException | LinkageError e) {
+            this.logger.error("SkinsRestorer 15.0.0+ API is required.", e);
+            return;
+        }
         Metrics metrics = this.metricsFactory.make(this, 29008);
         this.core = new Core(this.logger, serverImpl, serverVer);
-        server.getEventManager().register(this, new VelocityListener(this.core));
+        server.getEventManager().register(this, new VelocityListener(this.core, this.skins));
         server.getCommandManager().register(
                 server.getCommandManager().metaBuilder("littleskin").build(),
-                new VelocityLittleSkinCommand(this.core)
+                new VelocityLittleSkinCommand(this.core, this.skins)
         );
         this.logger.info("GetSkinFrom-LitteSkins enabled.");
     }
 
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent event) {
+        if (this.skins != null) this.skins.close();
         if (this.core != null) {
             this.core.shutdown();
         }

@@ -44,8 +44,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
         with:
-          name: LittleSkinPlugin-${{ steps.get_version.outputs.version }}
-          path: bundle/build/libs/LittleSkinPlugin-*.jar
+          name: GetSkinFrom-LitteSkins-${{ steps.get_version.outputs.version }}
+          path: bundle/build/libs/GetSkinFrom-LitteSkins-*.jar
           if-no-files-found: error
           overwrite: true
     outputs:
@@ -62,13 +62,13 @@ jobs:
         - name: Download Artifact
           uses: actions/download-artifact@v7
           with:
-            name: LittleSkinPlugin-${{ needs.build.outputs.version }}
+            name: GetSkinFrom-LitteSkins-${{ needs.build.outputs.version }}
             path: .
         - name: Create Release
           uses: softprops/action-gh-release@v2
           with:
-              name: LittleSkinPlugin ${{ needs.build.outputs.version }}
-              files: LittleSkinPlugin-*.jar
+              name: GetSkinFrom-LitteSkins ${{ needs.build.outputs.version }}
+              files: GetSkinFrom-LitteSkins-*.jar
               generate_release_notes: true
               make_latest: true
               prerelease: false

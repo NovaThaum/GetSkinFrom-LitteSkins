@@ -4,12 +4,16 @@ plugins {
 
 allprojects {
     group = "in.littlesk.plugin"
-    version = System.getenv("LSP_VERSION") ?: "1.2.1"
+    version = System.getenv("LSP_VERSION") ?: "1.2.2"
     extra.set("pluginId", "getskinfrom-littleskins")
     description = "Plugin for loading player textures from LittleSkins."
 
     repositories {
         mavenCentral()
+        maven {
+            url = uri("https://repo.codemc.org/repository/maven-releases/")
+            content { includeGroup("net.skinsrestorer") }
+        }
         maven {
             name = "papermc-repo"
             url = uri("https://repo.papermc.io/repository/maven-public/")

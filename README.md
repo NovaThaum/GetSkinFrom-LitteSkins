@@ -90,7 +90,7 @@
     - `server.properties` 中 `online-mode` 的值为 `false`。
 2. 将插件 jar 放入 Paper 的 `plugins/` 目录后重启 Paper 即可。
 
-SkinsRestorer 是运行此插件的必需依赖。登录时会先尝试从 LittleSkin 获取皮肤；LittleSkin 没有返回可用皮肤时，保留 SkinsRestorer 的皮肤处理结果。执行 `/skin update` 时由 SkinsRestorer 覆盖当前皮肤；执行 `/littleskin update` 时会先从 LittleSkin 获取，再通过 SkinsRestorer API 应用。LittleSkin 查询或应用失败时会提示玩家并保留当前皮肤。
+SkinsRestorer 15.0.0+ 是运行此插件的必需依赖。登录时不再直接修改 GameProfile，而是优先保留已有皮肤，并通过 SkinsRestorer API 查询其登录皮肤（已选皮肤、正版皮肤或默认皮肤）；仅在都没有皮肤时，才从 LittleSkin 获取并通过 API 补充。SkinsRestorer 查询失败时跳过补充，不抢占其皮肤处理。执行 `/skin update` 仍由 SkinsRestorer 处理；执行 `/littleskin update` 时主动从 LittleSkin 获取并通过 API 请求应用，不修改 SkinsRestorer 保存的皮肤选择。API 请求被接受不代表客户端已完成刷新，其他插件仍可取消应用事件。
 
 ### Velocity 群组服
 
@@ -99,6 +99,18 @@ SkinsRestorer 是运行此插件的必需依赖。登录时会先尝试从 Littl
     - Paper 子服的 `server.properties` 和 `config/paper-global.yml` 中 `online-mode` 的值均为 `false`。
 2. 将插件 jar 放入 Velocity 的 `plugins/` 目录后重启 Velocity 即可。
     - 群组服模式下 Paper 子服无需安装本插件。
+3. Velocity 安装 SkinsRestorer 15.0.0+，并按 SkinsRestorer 官方代理服配置要求配置子服；在线刷新通过 SkinsRestorer 的代理到子服消息通道完成。
+
+仅首次连接子服且没有已有皮肤时尝试 LittleSkin 补充，切换子服不会重新覆盖皮肤。
+
+### 与 SkinsRestorer 共存
+
+- 自动补充只读检查 SkinsRestorer 的 `config.yml`，遵守 `advanced.disableOnJoinSkins`。配置缺失、不可读或格式错误时跳过自动补充；本插件不会修改该文件。修改配置后，仍需按 SkinsRestorer 的要求重载或重启，使其自身设置同步生效。
+- Floodgate 玩家不进行 LittleSkin 自动补充或手动更新；Floodgate 已安装但 API 检查失败时也跳过，避免干预基岩版皮肤。
+- 后续的 SkinsRestorer 换肤事件会使未完成的 LittleSkin 请求失效；已提交但还未触发应用事件的旧请求也会被取消。只取消本插件自己的过期应用事件。
+- 为覆盖命令别名和命名空间形式，玩家执行任何新命令都会取消此前等待中的 LittleSkin 请求；新的 `/littleskin update` 会创建新请求。玩家退出和插件关闭也会使旧请求失效。
+- 手动 `/littleskin update` 不受“禁止登录自动换肤”影响，但仍遵守 Floodgate 排除和请求失效检查。
+
 
 ## 构建插件
 
